@@ -96,7 +96,6 @@ const recoveredSecret = slip39.recoverSecret(allShares, passphrase);
 console.log("Master secret: " + slip39DecodeHex(masterSecret));
 console.log("Recovered one: " + slip39DecodeHex(recoveredSecret));
 assert(slip39DecodeHex(masterSecret) === slip39DecodeHex(recoveredSecret));
-
 ```
 
 ## Testing
