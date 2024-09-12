@@ -1,15 +1,17 @@
 const slip39 = require("../src/slip39.js");
+const { Slip39Helper } = require("../src/slip39_helper.js");
+const { slip39DecodeHex, slip39EncodeHex } = Slip39Helper;
 const assert = require("assert");
 // threshold (N) number of group-shares required to reconstruct the master secret.
 const groupThreshold = 2;
-const masterSecret = "ABCDEFGHIJKLMNOP".slip39EncodeHex();
+const masterSecret = slip39EncodeHex("ABCDEFGHIJKLMNOP");
 const passphrase = "TREZOR";
 
 function recover(groupShares, pass) {
   const recoveredSecret = slip39.recoverSecret(groupShares, pass);
-  console.log("\tMaster secret: " + masterSecret.slip39DecodeHex());
-  console.log("\tRecovered one: " + recoveredSecret.slip39DecodeHex());
-  assert(masterSecret.slip39DecodeHex() === recoveredSecret.slip39DecodeHex());
+  console.log("\tMaster secret: " + slip39DecodeHex(masterSecret));
+  console.log("\tRecovered one: " + slip39DecodeHex(recoveredSecret));
+  assert(slip39DecodeHex(masterSecret) === slip39DecodeHex(recoveredSecret));
 }
 
 function printShares(shares) {
