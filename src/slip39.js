@@ -15,8 +15,13 @@ const MAX_DEPTH = 2;
  * For children nodes, description refers to the group e.g. "Family group: mom, dad, sister, wife"
  */
 class Slip39Node {
-  constructor(index = 0, description = "", mnemonic = "", children = []) {
+  constructor(index = 0, threshold, description = "", mnemonic = "", children = []) {
     this.index = index;
+    if (threshold === undefined) {
+      throw new Error("Threshold is required");
+    } else {
+      this.threshold = threshold;
+    }
     this.description = description;
     this.mnemonic = mnemonic;
     this.children = children;
@@ -53,11 +58,12 @@ class Slip39 {
   }
 
   static fromArray(
-    masterSecret,
-    {
+    masterSecret, {
       passphrase = "",
       threshold = 1,
-      groups = [[1, 1, "Default 1-of-1 group share"]],
+      groups = [
+        [1, 1, "Default 1-of-1 group share"]
+      ],
       iterationExponent = 0,
       extendableBackupFlag = 1,
       title = "My default slip39 shares",
@@ -114,7 +120,7 @@ class Slip39 {
     );
 
     const root = slip.buildRecursive(
-      new Slip39Node(0, title),
+      new Slip39Node(0, threshold, title),
       groups,
       encryptedMasterSecret,
       threshold,
@@ -162,7 +168,7 @@ class Slip39 {
       // Generate leaf members, means their `m` is `0`
       const members = Slip39Helper.slip39Generate(m, () => [n, 0, d]);
 
-      const node = new Slip39Node(idx, d);
+      const node = new Slip39Node(idx, n, d);
       const branch = this.buildRecursive(
         node,
         members,
@@ -229,6 +235,29 @@ class Slip39 {
     });
     return result;
   }
+
+  toJSON() {
+    const traverseNode = (node) => {
+      if (node.children.length === 0) {
+        return node.mnemonic;
+      }
+      return {
+        name: node.description,
+        threshold: node.threshold, // Assuming index represents threshold - 1
+        shares: node.children.map(traverseNode)
+      };
+    };
+
+    const rootNode = traverseNode(this.root);
+    return {
+      name: "Slip39",
+      // identifier: this.identifier,
+      threshold: this.threshold,
+      shares: rootNode.shares
+    };
+  }
 }
+
+
 
 exports = module.exports = Slip39;

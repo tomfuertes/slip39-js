@@ -134,4 +134,6 @@ console.log(
 printShares(requiredGroupShares);
 recover(requiredGroupShares, passphrase);
 
-console.log(JSON.stringify(slip, null, 2));
+// console.log(slip);
+// console.log(slip.root.children);
+// console.log(JSON.stringify(slip, null, 2));
