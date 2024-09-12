@@ -47,34 +47,35 @@ See `example/main.js`
 
 ```javascript
 const slip39 = require("../src/slip39.js");
-const { Slip39Helper } = require("../src/slip39_helpers.js");
+const { Slip39Helper } = require("../src/slip39_helper.js");
+const { slip39DecodeHex, slip39EncodeHex } = Slip39Helper;
 const assert = require("assert");
-// threshold (N) number of group shares required to reconstruct the master secret.
-const threshold = 2;
-const masterSecret = Slip39Helper.slip39EncodeHex("ABCDEFGHIJKLMNOP");
+// threshold (N) number of group-shares required to reconstruct the master secret.
+const groupThreshold = 2;
+const masterSecret = slip39EncodeHex("ABCDEFGHIJKLMNOP");
 const passphrase = "TREZOR";
 
 /**
- * 4 groups shares.
- * = two for Alice
- * = one for friends and
- * = one for family members
- * Two of these group shares are required to reconstruct the master secret.
+ * 4 groups shares:
+ *    = two for Alice
+ *    = one for friends and
+ *    = one for family members
+ * Any two (see threshold) of these four group-shares are required to reconstruct the master secret
+ * i.e. to recover the master secret the goal is to reconstruct any 2-of-4 group-shares.
  */
 const groups = [
-  // Alice group shares. 1 is enough to reconstruct a group share,
-  // therefore she needs at least two group shares to be reconstructed,
-  [1, 1],
-  [1, 1],
-  // 3 of 5 Friends' shares are required to reconstruct this group share
-  [3, 5],
-  // 2 of 6 Family's shares are required to reconstruct this group share
-  [2, 6],
+  // Alice group-shares. 1 is enough to reconstruct a group-share
+  [1, 1, "Alice personal group share 1"],
+  [1, 1, "Alice personal group share 2"],
+  // 3 of 5 Friends' shares are required to reconstruct this group-share
+  [3, 5, "Friends group share for Bob, Charlie, Dave, Frank and Grace"],
+  // 2 of 6 Family's shares are required to reconstruct this group-share
+  [2, 6, "Family group share for mom, dad, brother, sister and wife"],
 ];
 
 const slip = slip39.fromArray(masterSecret, {
   passphrase: passphrase,
-  threshold: threshold,
+  threshold: groupThreshold,
   groups: groups,
 });
 
@@ -92,9 +93,10 @@ console.log("Shares used for restoring the master secret:");
 allShares.forEach((s) => console.log(s));
 
 const recoveredSecret = slip39.recoverSecret(allShares, passphrase);
-console.log("Master secret: " + masterSecret.slip39DecodeHex());
-console.log("Recovered one: " + recoveredSecret.slip39DecodeHex());
-assert(masterSecret.slip39DecodeHex() === recoveredSecret.slip39DecodeHex());
+console.log("Master secret: " + slip39DecodeHex(masterSecret));
+console.log("Recovered one: " + slip39DecodeHex(recoveredSecret));
+assert(slip39DecodeHex(masterSecret) === slip39DecodeHex(recoveredSecret));
+
 ```
 
 ## Testing
