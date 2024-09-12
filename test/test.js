@@ -80,7 +80,7 @@ describe("Basic Tests", () => {
             .slip39DecodeHex(),
       );
     });
-    it("should NOT return valid mastersecret when user submits invalid passphrse", () => {
+    it("should NOT return valid mastersecret when user submits invalid passphrase", () => {
       assert(
         MS.slip39DecodeHex() !==
           slip39.recoverSecret(mnemonics.slice(0, 5)).slip39DecodeHex(),

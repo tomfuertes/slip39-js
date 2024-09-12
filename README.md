@@ -126,9 +126,9 @@ assert(masterSecret.slip39DecodeHex() === recoveredSecret.slip39DecodeHex());
       ✓ Test combination 1 3 4 5 6.
       ✓ Test combination 2 3 4 5 6.
     Test passhrase
-      ✓ should return valid mastersecret when user submits valid passphrse
-      ✓ should NOT return valid mastersecret when user submits invalid passphrse
-      ✓ should return valid mastersecret when user does not submit passphrse
+      ✓ should return valid mastersecret when user submits valid passphrase
+      ✓ should NOT return valid mastersecret when user submits invalid passphrase
+      ✓ should return valid mastersecret when user does not submit passphrase
     Test iteration exponent
       ✓ should return valid mastersecret when user apply valid iteration exponent (44ms)
       ✓ should throw an Error when user submits invalid iteration exponent
