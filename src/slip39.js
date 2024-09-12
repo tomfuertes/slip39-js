@@ -1,5 +1,11 @@
 /* eslint-disable radix */
-const slipHelper = require("./slip39_helper.js");
+const {
+  CryptoHelper,
+  ShamirHelper,
+  MnemonicHelper,
+  Slip39Helper,
+  MIN_ENTROPY_BITS
+} = require("./slip39_helper.js");
 
 const MAX_DEPTH = 2;
 
@@ -57,9 +63,9 @@ class Slip39 {
       title = "My default slip39 shares",
     } = {},
   ) {
-    if (masterSecret.length * 8 < slipHelper.MIN_ENTROPY_BITS) {
+    if (masterSecret.length * 8 < MIN_ENTROPY_BITS) {
       throw Error(
-        `The length of the master secret (${masterSecret.length} bytes) must be at least ${slipHelper.bitsToBytes(slipHelper.MIN_ENTROPY_BITS)} bytes.`,
+        `The length of the master secret (${masterSecret.length} bytes) must be at least ${Slip39Helper.bitsToBytes(MIN_ENTROPY_BITS)} bytes.`,
       );
     }
 
@@ -89,7 +95,7 @@ class Slip39 {
       }
     });
 
-    const identifier = slipHelper.generateIdentifier();
+    const identifier = Slip39Helper.generateIdentifier();
 
     const slip = new Slip39({
       iterationExponent: iterationExponent,
@@ -99,7 +105,7 @@ class Slip39 {
       groupThreshold: threshold,
     });
 
-    const encryptedMasterSecret = slipHelper.crypt(
+    const encryptedMasterSecret = CryptoHelper.crypt(
       masterSecret,
       passphrase,
       iterationExponent,
@@ -121,7 +127,7 @@ class Slip39 {
   buildRecursive(currentNode, nodes, secret, threshold, index) {
     // It means it's a leaf.
     if (nodes.length === 0) {
-      const mnemonic = slipHelper.encodeMnemonic(
+      const mnemonic = MnemonicHelper.encodeMnemonic(
         this.identifier,
         this.extendableBackupFlag,
         this.iterationExponent,
@@ -137,7 +143,7 @@ class Slip39 {
       return currentNode;
     }
 
-    const secretShares = slipHelper.splitSecret(
+    const secretShares = ShamirHelper.splitSecret(
       threshold,
       nodes.length,
       secret,
@@ -154,7 +160,7 @@ class Slip39 {
       const d = item[2] || "";
 
       // Generate leaf members, means their `m` is `0`
-      const members = Array().slip39Generate(m, () => [n, 0, d]);
+      const members = Slip39Helper.slip39Generate(m, () => [n, 0, d]);
 
       const node = new Slip39Node(idx, d);
       const branch = this.buildRecursive(
@@ -173,11 +179,11 @@ class Slip39 {
   }
 
   static recoverSecret(mnemonics, passphrase) {
-    return slipHelper.combineMnemonics(mnemonics, passphrase);
+    return MnemonicHelper.combineMnemonics(mnemonics, passphrase);
   }
 
   static validateMnemonic(mnemonic) {
-    return slipHelper.validateMnemonic(mnemonic);
+    return MnemonicHelper.validateMnemonic(mnemonic);
   }
 
   fromPath(path) {

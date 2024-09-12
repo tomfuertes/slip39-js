@@ -47,10 +47,11 @@ See `example/main.js`
 
 ```javascript
 const slip39 = require("../src/slip39.js");
+const { Slip39Helper } = require("../src/slip39_helpers.js");
 const assert = require("assert");
 // threshold (N) number of group shares required to reconstruct the master secret.
 const threshold = 2;
-const masterSecret = "ABCDEFGHIJKLMNOP".slip39EncodeHex();
+const masterSecret = Slip39Helper.slip39EncodeHex("ABCDEFGHIJKLMNOP");
 const passphrase = "TREZOR";
 
 /**

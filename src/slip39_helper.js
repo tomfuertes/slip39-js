@@ -99,7 +99,7 @@ class CryptoHelper {
     return Array.prototype.slice.call(key, 0);
   }
 
-  function crypt(masterSecret, passphrase, iterationExponent, identifier, extendableBackupFlag, encrypt = true) {
+  static crypt(masterSecret, passphrase, iterationExponent, identifier, extendableBackupFlag, encrypt = true) {
     // Iteration exponent validated here.
     if (iterationExponent < 0 || iterationExponent > MAX_ITERATION_EXP) {
       throw Error(
@@ -110,16 +110,16 @@ class CryptoHelper {
     let IL = masterSecret.slice().slice(0, masterSecret.length / 2);
     let IR = masterSecret.slice().slice(masterSecret.length / 2);
 
-    const pwd = passphrase.slip39EncodeHex();
+    const pwd = Slip39Helper.slip39EncodeHex(passphrase);
 
-    const salt = getSalt(identifier, extendableBackupFlag);
+    const salt = Slip39Helper.getSalt(identifier, extendableBackupFlag);
 
-    let range = Array().slip39Generate(ROUND_COUNT);
+    let range = Slip39Helper.slip39Generate(ROUND_COUNT);
     range = encrypt ? range : range.reverse();
 
     range.forEach((round) => {
-      const f = roundFunction(round, pwd, iterationExponent, salt, IR);
-      const t = xor(IL, f);
+      const f = CryptoHelper.roundFunction(round, pwd, iterationExponent, salt, IR);
+      const t = Slip39Helper.xor(IL, f);
       IL = IR;
       IR = t;
     });
@@ -159,19 +159,19 @@ class ShamirHelper {
     }
     //  If the threshold is 1, then the digest of the shared secret is not used.
     if (threshold === 1) {
-      return Array().slip39Generate(shareCount, () => sharedSecret);
+      return Slip39Helper.slip39Generate(shareCount, () => sharedSecret);
     }
 
     const randomShareCount = threshold - 2;
 
-    const randomPart = randomBytes(sharedSecret.length - DIGEST_LENGTH);
-    const digest = createDigest(randomPart, sharedSecret);
+    const randomPart = CryptoHelper.randomBytes(sharedSecret.length - DIGEST_LENGTH);
+    const digest = CryptoHelper.createDigest(randomPart, sharedSecret);
 
     let baseShares = new Map();
     let shares = [];
     if (randomShareCount) {
-      shares = Array().slip39Generate(randomShareCount, () =>
-        randomBytes(sharedSecret.length),
+      shares = Slip39Helper.slip39Generate(randomShareCount, () =>
+        CryptoHelper.randomBytes(sharedSecret.length),
       );
       shares.forEach((item, idx) => {
         baseShares.set(idx, item);
@@ -181,7 +181,7 @@ class ShamirHelper {
     baseShares.set(SECRET_INDEX, sharedSecret);
 
     for (let i = randomShareCount; i < shareCount; i++) {
-      const rr = interpolate(baseShares, i);
+      const rr = ShamirHelper.interpolate(baseShares, i);
       shares.push(rr);
     }
 
@@ -194,13 +194,13 @@ class ShamirHelper {
       return shares.values().next().value;
     }
 
-    const sharedSecret = interpolate(shares, SECRET_INDEX);
-    const digestShare = interpolate(shares, DIGEST_INDEX);
+    const sharedSecret = ShamirHelper.interpolate(shares, SECRET_INDEX);
+    const digestShare = ShamirHelper.interpolate(shares, DIGEST_INDEX);
     const digest = digestShare.slice(0, DIGEST_LENGTH);
     const randomPart = digestShare.slice(DIGEST_LENGTH);
 
-    const recoveredDigest = createDigest(randomPart, sharedSecret);
-    if (!listsAreEqual(digest, recoveredDigest)) {
+    const recoveredDigest = CryptoHelper.createDigest(randomPart, sharedSecret);
+    if (!Slip39Helper.listsAreEqual(digest, recoveredDigest)) {
       throw new Error("Invalid digest of the shared secret.");
     }
     return sharedSecret;
@@ -232,7 +232,7 @@ class ShamirHelper {
       logProd = logProd + LOG_TABLE[k ^ x];
     });
 
-    let results = Array().slip39Generate(
+    let results = Slip39Helper.slip39Generate(
       sharesValueLengths.values().next().value,
       () => 0,
     );
@@ -283,12 +283,12 @@ class MnemonicHelper {
     value,
   ) {
     // Convert the share value from bytes to wordlist indices.
-    const valueWordCount = bitsToWords(value.length * 8);
+    const valueWordCount = Slip39Helper.bitsToWords(value.length * 8);
 
-    const valueInt = decodeBigInt(value);
-    let newIdentifier = parseInt(decodeBigInt(identifier), 10);
+    const valueInt = Slip39Helper.decodeBigInt(value);
+    let newIdentifier = parseInt(Slip39Helper.decodeBigInt(identifier), 10);
 
-    const gp = groupPrefix(
+    const gp = Slip39Helper.groupPrefix(
       newIdentifier,
       extendableBackupFlag,
       iterationExponent,
@@ -296,7 +296,7 @@ class MnemonicHelper {
       groupThreshold,
       groupCount,
     );
-    const tp = intToIndices(valueInt, valueWordCount, RADIX_BITS);
+    const tp = Slip39Helper.intToIndices(valueInt, valueWordCount, RADIX_BITS);
 
     const calc =
       (((groupCount - 1) & 3) << 8) + (memberIndex << 4) + (memberThreshold - 1);
@@ -304,21 +304,21 @@ class MnemonicHelper {
     gp.push(calc);
     const shareData = gp.concat(tp);
 
-    const checksum = rs1024CreateChecksum(shareData, extendableBackupFlag);
+    const checksum = RS1024Helper.rs1024CreateChecksum(shareData, extendableBackupFlag);
 
-    return mnemonicFromIndices(shareData.concat(checksum));
+    return MnemonicHelper.mnemonicFromIndices(shareData.concat(checksum));
   }
 
   //
   // Combines mnemonic shares to obtain the master secret which was previously
   // split using Shamir's secret sharing scheme.
   //
-  function combineMnemonics(mnemonics, passphrase = "") {
+  static combineMnemonics(mnemonics, passphrase = "") {
     if (mnemonics === null || mnemonics.length === 0) {
       throw new Error("The list of mnemonics is empty.");
     }
 
-    const decoded = decodeMnemonics(mnemonics);
+    const decoded = MnemonicHelper.decodeMnemonics(mnemonics);
     const identifier = decoded.identifier;
     const extendableBackupFlag = decoded.extendableBackupFlag;
     const iterationExponent = decoded.iterationExponent;
@@ -343,7 +343,7 @@ class MnemonicHelper {
       const threshold = members.keys().next().value;
       const shares = members.values().next().value;
       if (shares.size !== threshold) {
-        const prefix = groupPrefix(
+        const prefix = Slip39Helper.groupPrefix(
           identifier,
           extendableBackupFlag,
           iterationExponent,
@@ -356,13 +356,13 @@ class MnemonicHelper {
         );
       }
 
-      const recovered = recoverSecret(threshold, shares);
+      const recovered = ShamirHelper.recoverSecret(threshold, shares);
       allShares.set(groupIndex, recovered);
     });
 
-    const ems = recoverSecret(groupThreshold, allShares);
-    const id = intToIndices(BigInt(identifier), ITERATION_EXP_WORDS_LENGTH, 8);
-    const ms = crypt(
+    const ems = ShamirHelper.recoverSecret(groupThreshold, allShares);
+    const id = Slip39Helper.intToIndices(BigInt(identifier), ITERATION_EXP_WORDS_LENGTH, 8);
+    const ms = CryptoHelper.crypt(
       ems,
       passphrase,
       iterationExponent,
@@ -386,7 +386,7 @@ class MnemonicHelper {
     const groups = new Map();
 
     mnemonics.forEach((mnemonic) => {
-      const decoded = decodeMnemonic(mnemonic);
+      const decoded = MnemonicHelper.decodeMnemonic(mnemonic);
 
       identifiers.add(decoded.identifier);
       extendableBackupFlags.add(decoded.extendableBackupFlag);
@@ -447,8 +447,8 @@ class MnemonicHelper {
   //
   // Converts a share mnemonic to share data.
   //
-  function decodeMnemonic(mnemonic) {
-    const data = mnemonicToIndices(mnemonic);
+  static decodeMnemonic(mnemonic) {
+    const data = MnemonicHelper.mnemonicToIndices(mnemonic);
 
     if (data.length < MNEMONICS_WORDS_LENGTH) {
       throw new Error(
@@ -462,7 +462,7 @@ class MnemonicHelper {
     }
 
     const idExpExtInt = parseInt(
-      intFromIndices(data.slice(0, ITERATION_EXP_WORDS_LENGTH)),
+      Slip39Helper.intFromIndices(data.slice(0, ITERATION_EXP_WORDS_LENGTH)),
       10,
     );
     const identifier =
@@ -474,15 +474,15 @@ class MnemonicHelper {
     const iterationExponent =
       idExpExtInt & ((1 << ITERATION_EXP_BITS_LENGTH) - 1);
 
-    if (!rs1024VerifyChecksum(data, extendableBackupFlag)) {
+    if (!RS1024Helper.rs1024VerifyChecksum(data, extendableBackupFlag)) {
       throw new Error("Invalid mnemonic checksum");
     }
 
-    const tmp = intFromIndices(
+    const tmp = Slip39Helper.intFromIndices(
       data.slice(ITERATION_EXP_WORDS_LENGTH, ITERATION_EXP_WORDS_LENGTH + 2),
     );
 
-    const indices = intToIndices(tmp, 5, 4);
+    const indices = Slip39Helper.intToIndices(tmp, 5, 4);
 
     const groupIndex = indices[0];
     const groupThreshold = indices[1];
@@ -501,13 +501,13 @@ class MnemonicHelper {
       );
     }
 
-    const valueInt = intFromIndices(valueData);
+    const valueInt = Slip39Helper.intFromIndices(valueData);
 
     try {
-      const valueByteCount = bitsToBytes(
+      const valueByteCount = Slip39Helper.bitsToBytes(
         RADIX_BITS * valueData.length - paddingLen,
       );
-      const share = encodeBigInt(valueInt, valueByteCount);
+      const share = Slip39Helper.encodeBigInt(valueInt, valueByteCount);
 
       return {
         identifier: identifier,
@@ -527,7 +527,7 @@ class MnemonicHelper {
 
   static validateMnemonic(mnemonic) {
     try {
-      decodeMnemonic(mnemonic);
+      MnemonicHelper.decodeMnemonic(mnemonic);
       return true;
     } catch (error) {
       return false;
@@ -583,24 +583,24 @@ class RS1024Helper {
   }
 
   static rs1024CreateChecksum(data, extendableBackupFlag) {
-    const values = get_customization_string(extendableBackupFlag)
-      .slip39EncodeHex()
-      .concat(data)
-      .concat(Array().slip39Generate(CHECKSUM_WORDS_LENGTH, () => 0));
-    const polymod = rs1024Polymod(values) ^ 1;
-    const result = Array()
+    const values = Slip39Helper.slip39EncodeHex(
+        Slip39Helper.get_customization_string(extendableBackupFlag)
+      ).concat(data)
+      .concat(Slip39Helper.slip39Generate(CHECKSUM_WORDS_LENGTH, () => 0));
+    const polymod = RS1024Helper.rs1024Polymod(values) ^ 1;
+    const result = Slip39Helper
       .slip39Generate(CHECKSUM_WORDS_LENGTH, (i) => (polymod >> (10 * i)) & 1023)
       .reverse();
 
-    return result;
+    return result;m
   }
 
   static rs1024VerifyChecksum(data, extendableBackupFlag) {
     return (
-      rs1024Polymod(
-        get_customization_string(extendableBackupFlag)
-        .slip39EncodeHex()
-        .concat(data),
+      RS1024Helper.rs1024Polymod(
+        Slip39Helper.slip39EncodeHex(
+          Slip39Helper.get_customization_string(extendableBackupFlag)
+        ).concat(data),
       ) === 1
     );
   }
@@ -613,9 +613,9 @@ class Slip39Helper {
   // Returns a randomly generated integer in the range 0, ... , 2**ID_BITS_LENGTH - 1.
   //
   static generateIdentifier() {
-    const byte = bitsToBytes(ID_BITS_LENGTH);
+    const byte = Slip39Helper.bitsToBytes(ID_BITS_LENGTH);
     const bits = ID_BITS_LENGTH % 8;
-    const identifier = randomBytes(byte);
+    const identifier = CryptoHelper.randomBytes(byte);
 
     identifier[0] = identifier[0] & ((1 << bits) - 1);
 
@@ -628,20 +628,16 @@ class Slip39Helper {
         `Invalid padding in mnemonic or insufficient length of mnemonics (${a.length} or ${b.length})`,
       );
     }
-    return Array().slip39Generate(a.length, (i) => a[i] ^ b[i]);
+    return Slip39Helper.slip39Generate(a.length, (i) => a[i] ^ b[i]);
   }
 
   static getSalt(identifier, extendableBackupFlag) {
     if (extendableBackupFlag) {
       return [];
     } else {
-      const salt = CUSTOMIZATION_STRING_NON_EXTENDABLE.slip39EncodeHex();
+      const salt = Slip39Helper.slip39EncodeHex(CUSTOMIZATION_STRING_NON_EXTENDABLE);
       return salt.concat(identifier);
     }
-  }
-
-  static bitsToBytes(n) {
-    // ... existing bitsToBytes implementation ...
   }
 
   static slip39EncodeHex(str) {
@@ -661,17 +657,16 @@ class Slip39Helper {
     return str.toString().replace(/,/g, "");
   };
 
-  static slip39Generate(arr, m, v = (_) => _) {
-    let n = m || arr.length;
-    for (let i = 0; i < n; i++) {
-      this[i] = v(i);
+  static slip39Generate(m, v = (_) => _) {
+    const arr = [];
+    for (let i = 0; i < m; i++) {
+      arr[i] = v(i);
     }
-    return this;
+    return arr;
   };
 
   static toHexString(arr) {
-    return arr.map
-      .call(this, function (byte) {
+    return arr.map(function (byte) {
         return ("0" + (byte & 0xff).toString(16)).slice(-2);
       })
       .join("");
@@ -708,7 +703,7 @@ class Slip39Helper {
     let result = BigInt(0);
     for (let i = 0; i < bytes.length; i++) {
       let b = BigInt(bytes[bytes.length - i - 1]);
-      result = result + (b << (BIGINT_WORD_BITS * BigInt(i)));
+      result = result + (b << (Slip39Helper.BIGINT_WORD_BITS * BigInt(i)));
     }
     return result;
   }
@@ -722,7 +717,7 @@ class Slip39Helper {
     while (num > BIGINT_ZERO) {
       let i = parseInt(num & BYTE_MASK, 10);
       result.unshift(i);
-      num = num >> BIGINT_WORD_BITS;
+      num = num >> Slip39Helper.BIGINT_WORD_BITS;
     }
 
     // Zero padding to the length
@@ -737,24 +732,6 @@ class Slip39Helper {
     }
 
     return result;
-  }
-
-  static bitsToBytes(n) {
-    const res = (n + 7) / 8;
-    const b = parseInt(res, RADIX_BITS);
-    return b;
-  }
-
-  static bitsToWords(n) {
-    const res = (n + RADIX_BITS - 1) / RADIX_BITS;
-    const b = parseInt(res, RADIX_BITS);
-    return b;
-  }
-
-  static get_customization_string(extendableBackupFlag) {
-    return extendableBackupFlag ?
-      CUSTOMIZATION_STRING_EXTENDABLE :
-      CUSTOMIZATION_STRING_NON_EXTENDABLE;
   }
 
   //
@@ -775,7 +752,7 @@ class Slip39Helper {
   //
   static intToIndices(value, length, bits) {
     const mask = BigInt((1 << bits) - 1);
-    const result = Array().slip39Generate(length, (i) =>
+    const result = Slip39Helper.slip39Generate(length, (i) =>
       parseInt((value >> (BigInt(i) * BigInt(bits))) & mask, 10),
     );
     return result.reverse();
@@ -796,7 +773,7 @@ class Slip39Helper {
       iterationExponent,
     );
 
-    const indc = intToIndices(idExpInt, ITERATION_EXP_WORDS_LENGTH, RADIX_BITS);
+    const indc = Slip39Helper.intToIndices(idExpInt, ITERATION_EXP_WORDS_LENGTH, RADIX_BITS);
 
     const indc2 =
       (groupIndex << 6) + ((groupThreshold - 1) << 2) + ((groupCount - 1) >> 2);
@@ -805,7 +782,7 @@ class Slip39Helper {
     return indc;
   }
 
-  function listsAreEqual(a, b) {
+  static listsAreEqual(a, b) {
     if (a === null || b === null || a.length !== b.length) {
       return false;
     }
@@ -1912,15 +1889,3 @@ exports = module.exports = {
   MIN_ENTROPY_BITS,
   WORD_LIST,
 };
-
-// exports = module.exports = {
-//   MIN_ENTROPY_BITS,
-//   generateIdentifier,
-//   encodeMnemonic,
-//   validateMnemonic,
-//   splitSecret,
-//   combineMnemonics,
-//   crypt,
-//   bitsToBytes,
-//   WORD_LIST,
-// };
