@@ -28,7 +28,7 @@ function shuffle(array) {
 }
 
 //
-// Combination C(n, k) of the grooups
+// Combination C(n, k) of the groups
 //
 function getCombinations(array, k) {
   let result = [];
