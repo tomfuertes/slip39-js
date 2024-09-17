@@ -54,6 +54,7 @@ class Slip39 {
       groups = [[1, 1, "Default 1-of-1 group share"]],
       iterationExponent = 0,
       extendableBackupFlag = 1,
+      identifier = slipHelper.generateIdentifier(),
       title = "My default slip39 shares",
     } = {},
   ) {
@@ -88,8 +89,6 @@ class Slip39 {
         );
       }
     });
-
-    const identifier = slipHelper.generateIdentifier();
 
     const slip = new Slip39({
       iterationExponent: iterationExponent,
